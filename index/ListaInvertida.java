@@ -388,6 +388,25 @@ public class ListaInvertida {
     return null;
   }
 
+ //Retorna todos os termos assicados a um episodio   
+ public ElementoLista[] readAllTermsForDocument(int docId) throws Exception {
+    ArrayList<ElementoLista> resultados = new ArrayList<>();
+    
+    arqDicionario.seek(4); // Pula o cabeçalho
+    while (arqDicionario.getFilePointer() != arqDicionario.length()) {
+        String termo = arqDicionario.readUTF();
+        long endereco = arqDicionario.readLong();
+        
+        // Para cada termo, verifica se o documento está na lista
+        ElementoLista el = read(termo, docId);
+        if (el != null) {
+            resultados.add(el); // Termo encontrado para este docId
+        }
+    }
+    
+    return resultados.toArray(new ElementoLista[0]);
+} 
+
   // Atualiza o dado de um termo, se ele existir
   public boolean update(String c, ElementoLista e) throws Exception {
 

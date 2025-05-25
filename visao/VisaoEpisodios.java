@@ -54,5 +54,17 @@ public class VisaoEpisodios {
         }
     }
 
+    // mostre apenas as informações essenciais
+    public void mostraEpisodioResumido(Episodio e) {
+    if (e != null) {
+        System.out.println(
+            "ID: " + e.getId() + 
+            " | Título: " + e.getNome() + 
+            " | Temporada: " + e.getTemporada() + 
+            " | Data: " + e.getDataLancamento()
+        );
+    }
+}
+
     
 }
