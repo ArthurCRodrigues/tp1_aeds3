@@ -4,10 +4,14 @@ import modelo.Ator;
 import modelo.Serie;
 import util.*;
 import visao.VisaoAtores;
-
+import index.ListaInvertida;
+import index.Indexador;
+import index.ElementoLista;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ControleAtores {
     private Arquivo<Ator> arqAtores;
@@ -16,12 +20,16 @@ public class ControleAtores {
     private ArvoreBMais<SerieAtor> indiceSerieAtor;
     private VisaoAtores visao;
     private Scanner sc;
+    private ListaInvertida listaInvertida;
+    private Indexador indexador;
 
     public ControleAtores() throws Exception {
         arqAtores = new Arquivo<>("Atores", Ator.class.getConstructor());
         arqSeries = new Arquivo<>("Series", Serie.class.getConstructor());
         indiceAtorSerie = new ArvoreBMais<>(AtorSerie.class.getConstructor(), 4, "dados/Atores/ator_serie.ind");
         indiceSerieAtor = new ArvoreBMais<>(SerieAtor.class.getConstructor(), 4, "dados/Series/serie_ator.ind");
+        listaInvertida = new ListaInvertida(10, "dados/Atores/dicionario_atores.dat", "dados/Atores/blocos_atores.dat");
+        indexador = new Indexador(listaInvertida);
         visao = new VisaoAtores();
         sc = new Scanner(System.in);
     }
@@ -36,6 +44,7 @@ public class ControleAtores {
             System.out.println("3. Atualizar ator");
             System.out.println("4. Excluir ator");
             System.out.println("5. Listar todos os atores");
+            System.out.println("6. Buscar ator por termos");
             System.out.println("0. Voltar");
             System.out.print("Opção: ");
             op = Integer.parseInt(sc.nextLine());
@@ -47,6 +56,7 @@ public class ControleAtores {
                     case 3 -> atualizarAtor();
                     case 4 -> excluirAtor();
                     case 5 -> listarAtores();
+                    case 6 -> buscarAtorPorTermos();
                 }
             } catch (Exception e) {
                 System.out.println("Erro: " + e.getMessage());
@@ -60,6 +70,7 @@ public class ControleAtores {
         if (a == null) return;
 
         int id = arqAtores.create(a);
+        indexador.indexarTitulo(id, a.getNome());
         System.out.println("✅ Ator cadastrado com ID: " + id);
     }
 
@@ -90,6 +101,7 @@ public class ControleAtores {
         novo.setID(id);
 
         arqAtores.update(novo);
+        indexador.atualizarTitulo(id, antigo.getNome(), novo.getNome());
         System.out.println("✅ Ator atualizado.");
     }
 
@@ -108,6 +120,7 @@ public class ControleAtores {
             return;
         }
 
+        indexador.removerDocumento(id, a.getNome());
         arqAtores.delete(id);
         System.out.println("✅ Ator excluído.");
     }
@@ -153,5 +166,41 @@ public class ControleAtores {
     public void deletarVinculo(int idAtor, int idSerie) throws Exception {
         indiceAtorSerie.delete(new AtorSerie(idAtor, idSerie));
         indiceSerieAtor.delete(new SerieAtor(idSerie, idAtor));
+    }
+
+    public void buscarAtorPorTermos() throws Exception {
+        System.out.print("Digite os termos de busca: ");
+        String termos = sc.nextLine();
+        List<String> termosBusca = TextoUtils.tokenizar(termos);
+        if (termosBusca.isEmpty()) {
+            System.out.println("Nenhum termo válido para busca.");
+            return;
+        }
+        Map<Integer, Float> scores = new HashMap<>();
+        int totalAtores = listaInvertida.numeroEntidades();
+        for (String termo : termosBusca) {
+            ElementoLista[] resultados = listaInvertida.read(termo);
+            if (resultados.length == 0) continue;
+            double idf = Math.log(totalAtores / (double)resultados.length) + 1;
+            for (ElementoLista el : resultados) {
+                int idAtor = el.getId();
+                float tfidf = (float)(el.getFrequencia() * idf);
+                scores.put(idAtor, scores.getOrDefault(idAtor, 0f) + tfidf);
+            }
+        }
+        if (scores.isEmpty()) {
+            System.out.println("Nenhum ator encontrado com os termos informados.");
+            return;
+        }
+        List<Map.Entry<Integer, Float>> atoresOrdenados = new ArrayList<>(scores.entrySet());
+        atoresOrdenados.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+        System.out.println("\nResultados da busca:");
+        for (Map.Entry<Integer, Float> entry : atoresOrdenados) {
+            Ator a = arqAtores.read(entry.getKey());
+            if (a != null) {
+                System.out.printf("Score: %.3f - ", entry.getValue());
+                visao.mostraAtor(a);
+            }
+        }
     }
 }

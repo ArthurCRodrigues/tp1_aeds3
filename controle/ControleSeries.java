@@ -6,10 +6,14 @@ import modelo.Ator;
 import util.*;
 import visao.VisaoSeries;
 import visao.VisaoEpisodios;
-
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Scanner;
+import index.ListaInvertida;
+import index.Indexador;
+import index.ElementoLista;
+import java.util.HashMap;
+import java.util.Map;
 
 public class ControleSeries {
     private Arquivo<Serie> arqSeries;
@@ -21,6 +25,8 @@ public class ControleSeries {
     private VisaoSeries visaoS;
     private VisaoEpisodios visaoE;
     private Scanner sc;
+    private ListaInvertida listaInvertida;
+    private Indexador indexador;
 
     public ControleSeries() throws Exception {
         arqSeries = new Arquivo<>("Series", Serie.class.getConstructor());
@@ -29,6 +35,8 @@ public class ControleSeries {
         indiceArvore = new ArvoreBMais<>(ParSerieEpisodio.class.getConstructor(), 4, "dados/Episodios/serie_episodio.ind");
         indiceSerieAtor = new ArvoreBMais<>(SerieAtor.class.getConstructor(), 4, "dados/Series/serie_ator.ind");
         indiceAtorSerie = new ArvoreBMais<>(AtorSerie.class.getConstructor(), 4, "dados/Atores/ator_serie.ind");
+        listaInvertida = new ListaInvertida(10, "dados/Series/dicionario_series.dat", "dados/Series/blocos_series.dat");
+        indexador = new Indexador(listaInvertida);
         visaoS = new VisaoSeries();
         visaoE = new VisaoEpisodios();
         sc = new Scanner(System.in);
@@ -46,6 +54,7 @@ public class ControleSeries {
             System.out.println("4. Excluir série");
             System.out.println("5. Visualizar episódios por temporada");
             System.out.println("6. Gerenciar elenco");
+            System.out.println("7. Buscar série por termos");
             System.out.println("0. Voltar");
 
             System.out.print("Opção: ");
@@ -59,6 +68,7 @@ public class ControleSeries {
                     case 4 -> excluirSerie();
                     case 5 -> visualizarEpisodiosPorTemporada();
                     case 6 -> gerenciarElenco();
+                    case 7 -> buscarSeriePorTermos();
                 }
             } catch (Exception e) {
                 System.out.println("Erro: " + e.getMessage());
@@ -69,6 +79,7 @@ public class ControleSeries {
     private void inserirSerie() throws Exception {
         Serie nova = visaoS.leSerie(sc);
         int id = arqSeries.create(nova);
+        indexador.indexarTitulo(id, nova.getNome());
         System.out.println("Série salva com ID: " + id);
     }
 
@@ -92,6 +103,7 @@ public class ControleSeries {
             Serie nova = visaoS.leSerie(sc);
             nova.setId(id);
             if (arqSeries.update(nova)) {
+                indexador.atualizarTitulo(id, existente.getNome(), nova.getNome());
                 System.out.println("Série atualizada com sucesso.");
             } else {
                 System.out.println("Erro ao atualizar série.");
@@ -115,6 +127,11 @@ public class ControleSeries {
         for (SerieAtor v : vinculos) {
             indiceSerieAtor.delete(v);
             indiceAtorSerie.delete(new AtorSerie(v.getIdAtor(), v.getIdSerie()));
+        }
+
+        Serie antiga = arqSeries.read(id);
+        if (antiga != null) {
+            indexador.removerDocumento(id, antiga.getNome());
         }
 
         if (arqSeries.delete(id)) {
@@ -244,5 +261,41 @@ public class ControleSeries {
         indiceSerieAtor.delete(vinculo);
         indiceAtorSerie.delete(new AtorSerie(idAtor, idSerie));
         System.out.println("Ator desvinculado com sucesso!");
+    }
+
+    public void buscarSeriePorTermos() throws Exception {
+        System.out.print("Digite os termos de busca: ");
+        String termos = sc.nextLine();
+        List<String> termosBusca = TextoUtils.tokenizar(termos);
+        if (termosBusca.isEmpty()) {
+            System.out.println("Nenhum termo válido para busca.");
+            return;
+        }
+        Map<Integer, Float> scores = new HashMap<>();
+        int totalSeries = listaInvertida.numeroEntidades();
+        for (String termo : termosBusca) {
+            ElementoLista[] resultados = listaInvertida.read(termo);
+            if (resultados.length == 0) continue;
+            double idf = Math.log(totalSeries / (double)resultados.length) + 1;
+            for (ElementoLista el : resultados) {
+                int idSerie = el.getId();
+                float tfidf = (float)(el.getFrequencia() * idf);
+                scores.put(idSerie, scores.getOrDefault(idSerie, 0f) + tfidf);
+            }
+        }
+        if (scores.isEmpty()) {
+            System.out.println("Nenhuma série encontrada com os termos informados.");
+            return;
+        }
+        List<Map.Entry<Integer, Float>> seriesOrdenadas = new ArrayList<>(scores.entrySet());
+        seriesOrdenadas.sort((e1, e2) -> e2.getValue().compareTo(e1.getValue()));
+        System.out.println("\nResultados da busca:");
+        for (Map.Entry<Integer, Float> entry : seriesOrdenadas) {
+            Serie s = arqSeries.read(entry.getKey());
+            if (s != null) {
+                System.out.printf("Score: %.3f - ", entry.getValue());
+                visaoS.mostraSerie(s);
+            }
+        }
     }
 }

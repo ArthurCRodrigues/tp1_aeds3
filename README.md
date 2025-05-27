@@ -1,99 +1,90 @@
-# 📺 PUCFlix 1.0
+# 📺 PUCFlix 1.0 — Índice Invertido
 
-Este projeto é o primeiro trabalho prático da disciplina de AEDS 3 e tem como objetivo implementar um sistema de gerenciamento de séries e episódios com relacionamento 1:N, utilizando estrutura de arquivos e índices com Árvores B+ e Tabela Hash Extensível.
-
----
-
-## ✅ O que o trabalho faz?
-
-O sistema permite ao usuário cadastrar, buscar, alterar e excluir **séries** e **episódios**. Cada **série** pode ter vários episódios, e cada episódio pertence a uma única série, estabelecendo o relacionamento 1:N.
-
-Além do CRUD básico, o projeto também:
-
-- Garante que uma série não possa ser excluída caso tenha episódios vinculados.
-- Organiza e visualiza episódios por temporada.
-- Usa Árvores B+ para manter o relacionamento entre séries e episódios.
-- Usa Tabela Hash Extensível como índice direto para melhorar a eficiência das buscas.
+Este terceiro trabalho prático da disciplina de AEDS 3 estende o sistema anterior de gerenciamento de séries, episódios e atores, adicionando **busca textual por termos** usando **Índice Invertido** e cálculo de **TF×IDF**. Agora é possível buscar entidades por palavras em títulos ou nomes, com resultados ordenados por relevância.
 
 ---
 
-## 👥 Participantes
+## ✅ Funcionalidades
 
-- **Alice Salim Khouri Antunes** – Entidade Série + Visão
-- **Guilherme Henrique da Silva Teodoro** – Entidade Episódio + Visão
-- **Daniel Victor Rocha Costa** – Controle de Séries + Relacionamento
-- **Arthur Carvalho Rodrigues** – Controle de Episódios + Integração geral e menus
+- CRUD completo para Séries, Episódios e Atores.
+- Relacionamento 1:N entre Séries e Episódios (Árvore B+).  
+- Gerenciamento de elenco (índice secundário Ator↔Série).  
+- **Busca textual** por termos em:
+  - Títulos de Séries.
+  - Títulos de Episódios.
+  - Nomes de Atores.
+- Cálculo de **TF** (Term Frequency) e **IDF** (Inverse Document Frequency) e ranqueamento por **TF×IDF**.
+- Armazenamento de índice invertido em arquivos com `ListaInvertida`.
 
 ---
 
-## 📦 Estrutura de Classes
+## 👥 Participantes e Responsabilidades
 
-### 📁 `model`
-- `Serie.java`  
-  Representa a entidade série. Contém os atributos: `id`, `nome`, `anoLancamento`, `sinopse`, `streaming`.
+🧑‍💻 **Guilherme – Implementação da ListaInvertida**  
+• Classe `ListaInvertida.java`: persistência em arquivos (dicionário e blocos).  
+• Métodos: `create`, `read`, `update`, `delete`, `readAllTermsForDocument`, `numeroEntidades`.  
+• Cálculo de TF, leitura de listas de documentos e manutenção de contagem N.  
+• Classe `Indexador.java`: façade para indexar, atualizar, remover e buscar termos.
 
-- `Episodio.java`  
-  Representa a entidade episódio. Atributos: `id`, `idSerie`, `nome`, `temporada`, `dataLancamento`, `duracao`.
+🧑‍💻 **Daniel Victor – Integração com Séries**  
+• Extensão de `ControleSeries.java`: indexação de título em create/update/delete.  
+• Método `buscarSeriePorTermos`: tokenização, consulta a `ListaInvertida`, cálculo de TF×IDF e exibição ordenada.
 
-### 📁 `view`
-- `VisaoSeries.java`  
-  Métodos:
-  - `Serie leSerie()`: lê dados do usuário.
-  - `void mostraSerie(Serie s)`: exibe os dados de uma série.
+🧑‍💻 **Alice – Integração com Episódios**  
+• Extensão de `ControleEpisodios.java`: indexação de título em create/update/delete.  
+• Reuso de `Indexador` e `ListaInvertida`.  
+• Método `buscarEpisodioPorTermos`: busca e ranqueamento por TF×IDF.
 
-- `VisaoEpisodios.java`  
-  Métodos:
-  - `Episodio leEpisodio(int idSerie)`: lê episódio vinculado a uma série.
-  - `void mostraEpisodio(Episodio e)`: exibe dados de um episódio.
+🧑‍💻 **Arthur – Integração com Atores + Interface + Documentação**  
+• Extensão de `ControleAtores.java`: indexação de nome em create/update/delete.  
+• Método `buscarAtorPorTermos`: busca textual de atores.  
+• Adição de opções de menu para busca por termos.  
+• Escrita deste README com descrição, estrutura, experiência e checklist.
 
-### 📁 `controller`
-- `ControleSeries.java`  
-  Controla o menu de séries. Gerencia:
-  - Inclusão, alteração, busca e exclusão de séries
-  - Verifica existência de episódios antes de excluir
-  - Visualização de episódios por temporada
+---
 
-- `ControleEpisodios.java`  
-  Controla os episódios por série.
-  - Permite a inclusão, alteração, busca e exclusão
-  - Garante que a série exista antes de vincular episódio
+## 📦 Estrutura de Classes e Métodos Principais
 
-- `Main.java`  
-  Menu principal:
-  - 1) Séries
-  - 2) Episódios (somente após escolher série)
-  - 0) Sair
+### index
+- **ListaInvertida**: gerencia índice invertido em arquivo. Métodos: `create(term, ElementoLista)`, `read(term)`, `readAllTermsForDocument(docId)`, `numeroEntidades()`, `update(term, el)`, `delete(term, id)`.
+- **ElementoLista**: par `(id, frequência)`.
+- **Indexador**: façade para indexar títulos/nomes; métodos `indexarTitulo`, `removerDocumento`, `atualizarTitulo`, `buscar`.
+
+### controle
+- **ControleSeries**: CRUD de séries + integração com índice invertido + menu `Buscar série por termos`.
+- **ControleEpisodios**: CRUD de episódios + integração com índice invertido + menu `Buscar episódio por termos`.
+- **ControleAtores**: CRUD de atores + integração com índice invertido + menu `Buscar ator por termos`.
+
+### modelo
+- **Serie, Episodio, Ator**: entidades com serialização `toByteArray()`/`fromByteArray()`.
+- Relacionamentos: `ParSerieEpisodio`, `SerieAtor`, `AtorSerie`.
+
+### util
+- **TextoUtils**: normalização, tokenização e cálculo de TF.  
+- **HashExtensivel**, **ArvoreBMais**: índices secundários e relacionais.
 
 ---
 
 ## 🧠 Experiência de Desenvolvimento
 
-O trabalho exigiu atenção ao relacionamento entre as entidades e à forma como os dados são organizados em disco. A implementação da Árvore B+ e da Tabela Hash Extensível foi desafiadora, mas contribuiu para tornar as buscas e o relacionamento entre séries e episódios mais eficientes.
-
-Conseguimos cumprir todos os requisitos propostos, respeitando a organização em camadas (MVC), e utilizando corretamente os arquivos e índices.
+Implementar o índice invertido e o cálculo de TF×IDF foi o maior desafio. A arquitetura em MVC e o uso de arquivos binários exigiram cuidado na persistência e atualização do índice. A divisão de tarefas em quatro partes permitiu foco na classe genérica de índice, integração em cada controle e documentação. Testes com dados reais confirmaram a eficiência das buscas.
 
 ---
 
 ## 📋 Checklist
 
-- [x] As operações de inclusão, busca, alteração e exclusão de séries estão implementadas e funcionando corretamente?  
-- [x] As operações de inclusão, busca, alteração e exclusão de episódios, por série, estão implementadas e funcionando corretamente?  
-- [x] Essas operações usam a classe CRUD genérica para a construção do arquivo e as classes Tabela Hash Extensível e Árvore B+ como índices diretos e indiretos?  
-- [x] O atributo de ID de série, como chave estrangeira, foi criado na classe de episódios?  
-- [x] Há uma árvore B+ que registre o relacionamento 1:N entre episódios e séries?  
-- [x] Há uma visualização das séries que mostre os episódios por temporada?  
-- [x] A remoção de séries checa se há algum episódio vinculado a ela?  
-- [x] A inclusão da série em um episódio se limita às séries existentes?  
-- [x] O trabalho está funcionando corretamente?  
+- [x] O índice invertido com os termos dos títulos das séries foi criado usando a classe `ListaInvertida`?  
+- [x] O índice invertido com os termos dos títulos dos episódios foi criado usando a classe `ListaInvertida`?  
+- [x] O índice invertido com os termos dos nomes dos atores foi criado usando a classe `ListaInvertida`?  
+- [x] É possível buscar séries por palavras usando o índice invertido?  
+- [x] É possível buscar episódios por palavras usando o índice invertido?  
+- [x] É possível buscar atores por palavras usando o índice invertido?  
 - [x] O trabalho está completo?  
-- [x] O trabalho é original e não a cópia de um trabalho de outro grupo?
+- [x] O trabalho é original e não a cópia de um trabalho de um colega?
 
 ---
 
 ## 🔗 Repositório
 
-[🔗 https://github.com/alicesalim/tp1_aeds3.git](https://github.com/alicesalim/tp1_aeds3.git)  
+`https://github.com/alicesalim/tp2_aeds3.git`  
 
----
-
-> Projeto desenvolvido como parte do TP1 da disciplina de AEDS 3 — PUC Minas.
