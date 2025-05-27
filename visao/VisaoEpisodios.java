@@ -1,8 +1,8 @@
 package visao;
 
-import java.util.Scanner;
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.Scanner;
 import modelo.Episodio;
 
 public class VisaoEpisodios {
@@ -53,4 +53,18 @@ public class VisaoEpisodios {
             System.out.println("Episódio inválido.");
         }
     }
+
+    // mostre apenas as informações essenciais
+    public void mostraEpisodioResumido(Episodio e) {
+    if (e != null) {
+        System.out.println(
+            "ID: " + e.getId() + 
+            " | Título: " + e.getNome() + 
+            " | Temporada: " + e.getTemporada() + 
+            " | Data: " + e.getDataLancamento()
+        );
+    }
+}
+
+    
 }
